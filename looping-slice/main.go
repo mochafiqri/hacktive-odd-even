@@ -11,5 +11,6 @@ func main() {
 	for i, v := range team {
 		fmt.Print(strconv.Itoa(i + 1))
 		fmt.Println(". Hai " + v)
+
 	}
 }
