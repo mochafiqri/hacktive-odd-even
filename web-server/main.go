@@ -13,24 +13,34 @@ const (
 
 func main() {
 	fmt.Println("TES")
-	http.HandleFunc("/", greet)
-	http.HandleFunc("/register", Register)
+	var user = NewUserContract()
+	http.HandleFunc("/register", user.Register)
+	http.HandleFunc("/user", user.GetUser)
 
 	var err = http.ListenAndServe(PORT, nil)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+
 }
 
-func greet(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello Word")
+type UserModel struct {
+	Name string `json:"name"`
 }
 
-func Register(w http.ResponseWriter, r *http.Request) {
+type User interface {
+	Register(w http.ResponseWriter, r *http.Request)
+	GetUser(w http.ResponseWriter, r *http.Request)
+}
+
+type UserContract struct {
+	Users []UserModel
+}
+
+func (u *UserContract) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		w.Header().Set("Content-Type", "application/json")
 		var req = UserModel{}
-		var user = NewUserContract()
 
 		decoder := json.NewDecoder(r.Body)
 
@@ -39,32 +49,17 @@ func Register(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err.Error())
 			return
 		}
-		user.Register(req)
-		var users = user.GetUser()
 
-		json.NewEncoder(w).Encode(users)
+		u.Users = append(u.Users, req)
+		json.NewEncoder(w).Encode(u.Users)
 	}
 }
 
-type UserModel struct {
-	Name string `json:"name"`
-}
-
-type User interface {
-	Register(user UserModel)
-	GetUser() []UserModel
-}
-
-type UserContract struct {
-	Users []UserModel
-}
-
-func (u *UserContract) Register(user UserModel) {
-	u.Users = append(u.Users, user)
-}
-
-func (u *UserContract) GetUser() []UserModel {
-	return u.Users
+func (u *UserContract) GetUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(u.Users)
+	}
 }
 
 func NewUserContract() User {
