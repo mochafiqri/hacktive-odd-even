@@ -1,26 +1,28 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type UserModel struct {
 	Name string
 }
 
 type User interface {
-	Register(user *UserModel)
-	GetUser() []*UserModel
+	Register(user UserModel)
+	GetUser() []UserModel
 }
 
 type UserContract struct {
-	Users []*UserModel
+	Users []UserModel
 }
 
-func (u *UserContract) Register(user *UserModel) {
+func (u *UserContract) Register(user UserModel) {
 	u.Users = append(u.Users, user)
 }
 
-func (u *UserContract) GetUser() []*UserModel {
-	//TODO implement me
+func (u *UserContract) GetUser() []UserModel {
 	return u.Users
 }
 
@@ -31,12 +33,40 @@ func NewUserContract() User {
 func main() {
 
 	var u = NewUserContract()
-	u.Register(&UserModel{Name: "Fiqri"})
-	u.Register(&UserModel{Name: "Clara"})
+	wg := sync.WaitGroup{}
+	wg.Add(4)
+	go func() {
+		u.Register(UserModel{Name: "Fiqri"})
+		wg.Done()
+	}()
+	go func() {
+		u.Register(UserModel{Name: "Clara"})
+		wg.Done()
+
+	}()
+	go func() {
+		u.Register(UserModel{Name: "Rijal"})
+		wg.Done()
+
+	}()
+	go func() {
+		u.Register(UserModel{Name: "Medy"})
+		wg.Done()
+
+	}()
+	wg.Wait()
 
 	var users = u.GetUser()
-	for _, v := range users {
-		fmt.Println(v.Name)
+	wg.Add(len(users))
+
+	for i := 0; i < len(users); i++ {
+		go print(&wg, &users[i])
 	}
 
+	wg.Wait()
+}
+
+func print(wg *sync.WaitGroup, user *UserModel) {
+	fmt.Println(user.Name)
+	wg.Done()
 }
