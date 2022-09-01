@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
 	"sync"
 )
 
@@ -12,16 +13,14 @@ const (
 )
 
 func main() {
-	fmt.Println("TES")
+	r := gin.Default()
+
 	var user = NewUserContract()
-	http.HandleFunc("/register", user.Register)
-	http.HandleFunc("/user", user.GetUser)
+	r.POST("/register", user.Register)
+	r.GET("/user", user.GetUsers)
+	r.GET("/user/:number", user.GetUser)
 
-	var err = http.ListenAndServe(PORT, nil)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-
+	r.Run(PORT)
 }
 
 type UserModel struct {
@@ -29,37 +28,45 @@ type UserModel struct {
 }
 
 type User interface {
-	Register(w http.ResponseWriter, r *http.Request)
-	GetUser(w http.ResponseWriter, r *http.Request)
+	Register(c *gin.Context)
+	GetUser(c *gin.Context)
+	GetUsers(c *gin.Context)
 }
 
 type UserContract struct {
 	Users []UserModel
 }
 
-func (u *UserContract) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		w.Header().Set("Content-Type", "application/json")
-		var req = UserModel{}
+func (u *UserContract) Register(c *gin.Context) {
+	var req = UserModel{}
 
-		decoder := json.NewDecoder(r.Body)
-
-		var err = decoder.Decode(&req)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
-		}
-
-		u.Users = append(u.Users, req)
-		json.NewEncoder(w).Encode(u.Users)
+	var err = c.Bind(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err.Error())
 	}
+	u.Users = append(u.Users, req)
+
+	c.JSON(http.StatusOK, req)
 }
 
-func (u *UserContract) GetUser(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(u.Users)
+func (u *UserContract) GetUsers(c *gin.Context) {
+	c.JSON(http.StatusOK, u.Users)
+}
+func (u *UserContract) GetUser(c *gin.Context) {
+	var tmp = c.Param("number")
+	var number, err = strconv.Atoi(tmp)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, err.Error())
 	}
+
+	if len(u.Users) < number {
+		c.JSON(http.StatusOK, map[string]interface{}{
+			"error": "data not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, u.Users[number-1])
 }
 
 func NewUserContract() User {
